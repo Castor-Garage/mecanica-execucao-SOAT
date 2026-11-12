@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: execucao-api
+  labels:
+    app: execucao-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: execucao-api
+  template:
+    metadata:
+      labels:
+        app: execucao-api
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/castor-garage/mecanica-execucao-soat:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+          env:
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: execucao-config
+                  key: PORT
+            - name: HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: execucao-config
+                  key: HOST
+            - name: NODE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: execucao-config
+                  key: NODE_ENV
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: execucao-secret
+                  key: DATABASE_URL
+            - name: NEW_RELIC_APP_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: execucao-config
+                  key: NEW_RELIC_APP_NAME
+            - name: NEW_RELIC_LICENSE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: execucao-secret
+                  key: NEW_RELIC_LICENSE_KEY
+            - name: NEW_RELIC_AI_MONITORING_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: execucao-config
+                  key: NEW_RELIC_AI_MONITORING_ENABLED
+            - name: NEW_RELIC_CUSTOM_INSIGHTS_EVENTS_MAX_SAMPLES_STORED
+              valueFrom:
+                configMapKeyRef:
+                  name: execucao-config
+                  key: NEW_RELIC_CUSTOM_INSIGHTS_EVENTS_MAX_SAMPLES_STORED
+            - name: NEW_RELIC_SPAN_EVENTS_MAX_SAMPLES_STORED
+              valueFrom:
+                configMapKeyRef:
+                  name: execucao-config
+                  key: NEW_RELIC_SPAN_EVENTS_MAX_SAMPLES_STORED
+            # TODO (Fase 3/5 do backlog): SQS_EXECUCAO_COMMANDS_QUEUE_URL,
+            # SQS_OS_EVENTS_QUEUE_URL
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

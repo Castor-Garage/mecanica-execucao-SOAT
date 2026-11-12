@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Modelo inicial do dominio de Execucao/Producao (Fase 4). Ver ADR 0006 e
+// RFC 0004 em mecanica-pos-SOAT/docs para o desenho completo da saga e da
+// divisao de bancos.
+
+enum ExecutionStatus {
+  AGUARDANDO
+  EM_DIAGNOSTICO
+  EM_EXECUCAO
+  FINALIZADA
+  FALHOU
+}
+
+model ExecutionQueueItem {
+  id             String          @id @default(uuid())
+  // id da Ordem de Servico no OS Service - nao ha FK entre bancos, apenas
+  // referencia logica recebida no comando IniciarExecucao (SQS execucao-commands).
+  serviceOrderId String          @map("service_order_id")
+  status         ExecutionStatus @default(AGUARDANDO)
+  diagnosis      String?
+  failureReason  String?         @map("failure_reason")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  startedAt      DateTime?       @map("started_at")
+  finishedAt     DateTime?       @map("finished_at")
+
+  @@index([serviceOrderId])
+  @@map("execution_queue_items")
+}

@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.env
+.env.local
+.env.test
+aws.txt
+aws.env
+coverage/
+*.log
+.DS_Store
+
+# Kustomize secrets (gerados por CI, nunca commitados)
+k8s/api/overlays/*/secret.env
