@@ -35,15 +35,22 @@ Service é assíncrona via mensageria. O servidor HTTP existe apenas para o
 - [x] Testes unitários dos use cases: 44 testes, ~97% de cobertura em
       domínio/aplicação
 - [ ] 1 fluxo completo testado com BDD (ponta a ponta com os 3 serviços)
-- [ ] Secrets de produção/staging (`execucao-secret`: `DATABASE_URL`,
-      `NEW_RELIC_LICENSE_KEY`)
+- [x] Secrets de produção/staging: `execucao-secret` montado pelo pipeline a
+      partir do SSM Parameter Store (ver [CI/CD](#cicd))
+- [x] Migration inicial do Prisma (`prisma/migrations/*_init`)
 
 ## Banco de dados
 
 PostgreSQL próprio (ver `prisma/schema.prisma`): `ExecutionQueueItem`.
 Nenhuma relação de banco com o OS Service ou o Billing Service — toda
 referência entre eles é por id lógico (`serviceOrderId`), recebido via
-mensageria.
+mensageria. A instância RDS é provisionada em
+[`mecanica-db-infra-SOAT`](https://github.com/Castor-Garage/mecanica-db-infra-SOAT).
+
+As migrations ficam em `prisma/migrations/` e são aplicadas pelo próprio
+container ao subir (`prisma migrate deploy` no `CMD` do Dockerfile). Para
+mudar o schema: edite `schema.prisma` e rode `npm run db:migrate` com um
+Postgres local, que gera a nova migration.
 
 ## Rodar localmente
 
@@ -80,6 +87,26 @@ namespaces `castor-garage-staging`/`castor-garage-production`.
 Secrets necessários no repositório (GitHub Actions): `AWS_ACCESS_KEY_ID`,
 `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `NEW_RELIC_LICENSE_KEY`,
 `SONAR_TOKEN`.
+
+### Secret do Kubernetes (`execucao-secret`)
+
+Nada é criado à mão no cluster: a cada deploy o pipeline monta o
+`execucao-secret` lendo o SSM Parameter Store, e o step falha se algum
+parâmetro não existir.
+
+| Chave | Origem |
+|---|---|
+| `DATABASE_URL` | SSM `/castor-garage/execucao/database-url` (`-staging` em staging) — `mecanica-db-infra-SOAT` |
+| `SQS_EXECUCAO_COMMANDS_QUEUE_URL`, `SQS_OS_EVENTS_QUEUE_URL` | SSM `/castor-garage/queues/*-url` — `mecanica-k8s-infra-SOAT` (só em produção) |
+| `NEW_RELIC_LICENSE_KEY` | secret do GitHub |
+
+Staging não recebe URLs de fila: só existe um conjunto de filas SQS e um
+consumer de staging roubaria mensagens da saga de produção. As credenciais
+AWS para SQS não vão no Secret: os pods usam a LabRole dos nodes do EKS.
+
+**Ordem de deploy**: o `terraform apply` de `mecanica-k8s-infra-SOAT`
+(cluster + filas) e de `mecanica-db-infra-SOAT` (banco) precisa ter rodado
+antes do primeiro deploy deste serviço.
 
 ## Saga Pattern
 

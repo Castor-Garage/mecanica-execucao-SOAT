@@ -66,8 +66,27 @@ spec:
                 configMapKeyRef:
                   name: execucao-config
                   key: NEW_RELIC_SPAN_EVENTS_MAX_SAMPLES_STORED
-            # TODO (Fase 3/5 do backlog): SQS_EXECUCAO_COMMANDS_QUEUE_URL,
-            # SQS_OS_EVENTS_QUEUE_URL
+            # Credenciais AWS (SQS) vem da LabRole dos nodes via IMDS - nao ha
+            # access key aqui, so a regiao.
+            - name: AWS_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: execucao-config
+                  key: AWS_REGION
+            # Opcionais: so existem em producao (staging nao tem filas proprias
+            # - ver pipeline).
+            - name: SQS_EXECUCAO_COMMANDS_QUEUE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: execucao-secret
+                  key: SQS_EXECUCAO_COMMANDS_QUEUE_URL
+                  optional: true
+            - name: SQS_OS_EVENTS_QUEUE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: execucao-secret
+                  key: SQS_OS_EVENTS_QUEUE_URL
+                  optional: true
           livenessProbe:
             httpGet:
               path: /health
