@@ -12,25 +12,29 @@ microsserviços com Saga Pattern.
 ## Responsabilidades
 
 - Gerenciar a fila de execução da OS a partir do comando `IniciarExecucao`
-  (recebido do OS Service via Amazon SQS, fila `execucao-commands`).
-- Atualizar o status durante diagnóstico e reparo.
+  (recebido do OS Service, fila `execucao-commands`) — cria o item já em
+  diagnóstico.
+- Avançar o status durante diagnóstico/reparo via o comando `AvancarExecucao`
+  (um passo por chamada: diagnóstico → execução → finalizada), a pedido do
+  mecânico/admin pelo OS Service.
+- Registrar falha via `FalharExecucao` quando o reparo não pode ser concluído.
 - Publicar os eventos `ExecucaoFinalizada`/`ExecucaoFalhou` na fila
   `os-events`, consumida pelo orquestrador da saga no OS Service.
 
 Este serviço **não expõe uma API pública** — toda a integração com o OS
-Service é assíncrona via SQS. O servidor HTTP existe apenas para o
+Service é assíncrona via mensageria. O servidor HTTP existe apenas para o
 `/health` exigido pelas probes do Kubernetes.
 
-## Estado atual (scaffold inicial - Fase 1 do backlog)
+## Estado atual (Fase 3 do backlog concluída)
 
-Este repositório ainda contém apenas a base de infraestrutura/observabilidade
-(Fastify, Prisma, logger, tratamento de erros, CI/CD, Docker, Kubernetes),
-replicada do padrão já validado em `mecanica-pos-SOAT`. **Ainda faltam** (ver
-plano de migração completo no repo principal):
-
-- [ ] Consumer SQS do comando `IniciarExecucao` e publisher dos eventos em `os-events`
-- [ ] Use cases de diagnóstico/reparo/finalização
-- [ ] Testes unitários dos use cases (cobertura ≥80%)
+- [x] Consumer dos comandos `IniciarExecucao`/`AvancarExecucao`/`FalharExecucao`
+      e publisher dos eventos em `os-events` — hoje sobre `InMemoryMessageBus`
+      (porta `IMessageBus`), SQS real entra na Fase 5 sem mudar os use cases
+- [x] Use cases de diagnóstico/reparo/finalização (`StartExecutionUseCase`,
+      `AdvanceExecutionUseCase`, `FailExecutionUseCase`)
+- [x] Testes unitários dos use cases: 44 testes, ~97% de cobertura em
+      domínio/aplicação
+- [ ] 1 fluxo completo testado com BDD (ponta a ponta com os 3 serviços)
 - [ ] Secrets de produção/staging (`execucao-secret`: `DATABASE_URL`,
       `NEW_RELIC_LICENSE_KEY`)
 
