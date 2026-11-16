@@ -9,13 +9,14 @@ import { ZodError } from 'zod'
 import { loggerOptions } from '../observability/logger.js'
 import { requestContext, resolveRequestId } from '../observability/request-context.js'
 import { BusinessEventLogger } from '../observability/events.js'
+import { bootstrapExecucaoCommandsConsumer } from '../messaging/bootstrapConsumers.js'
 
 const REQUEST_ID_HEADER = 'x-request-id'
 
-// Execucao/Producao Service nao tem fachada HTTP publica (ver ADR 0006): o
-// comando IniciarExecucao chega via SQS (consumer a adicionar na Fase 3 do
-// backlog). O servidor Fastify existe apenas para o /health exigido pelas
-// probes do Kubernetes.
+// Execucao/Producao Service nao tem fachada HTTP publica (ver ADR 0006): os
+// comandos (IniciarExecucao/AvancarExecucao/FalharExecucao) chegam via
+// mensageria, consumidos por bootstrapExecucaoCommandsConsumer. O servidor
+// Fastify existe apenas para o /health exigido pelas probes do Kubernetes.
 export function buildServer() {
   const app = Fastify({
     logger: loggerOptions(),
@@ -33,6 +34,8 @@ export function buildServer() {
     reply.header(REQUEST_ID_HEADER, request.id)
     requestContext.run({ requestId: request.id }, done)
   })
+
+  bootstrapExecucaoCommandsConsumer(app.log)
 
   app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }))
 
