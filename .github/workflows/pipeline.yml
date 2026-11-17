@@ -126,12 +126,24 @@ jobs:
       - name: Aplicar manifesto de namespace
         run: kubectl apply -f k8s/api/overlays/production/namespace.yaml
 
-      # execucao-secret e aplicado manualmente nesse namespace (DATABASE_URL,
-      # URLs das filas SQS) - so a chave da New Relic e mantida em dia aqui.
-      - name: Atualizar license key da New Relic no Secret (production)
+      # execucao-secret e (re)criado a cada deploy, sem nada aplicado a mao no
+      # cluster: banco vem do SSM publicado por mecanica-db-infra-SOAT, filas
+      # do SSM publicado por mecanica-k8s-infra-SOAT, e a license key da New
+      # Relic dos secrets do GitHub. Le cada parametro numa variavel antes de
+      # montar o Secret para o step falhar (set -e) se algum nao existir.
+      - name: Montar Secret do servico a partir do SSM (production)
         run: |
-          kubectl --context "${EKS_CLUSTER}" -n castor-garage-production patch secret execucao-secret \
-            --type merge -p "{\"stringData\":{\"NEW_RELIC_LICENSE_KEY\":\"${NEW_RELIC_LICENSE_KEY}\"}}"
+          ssm() { aws ssm get-parameter --name "$1" --with-decryption --query Parameter.Value --output text; }
+          DATABASE_URL=$(ssm /castor-garage/execucao/database-url)
+          echo "::add-mask::${DATABASE_URL}"
+          EXECUCAO_COMMANDS_URL=$(ssm /castor-garage/queues/execucao-commands-url)
+          OS_EVENTS_URL=$(ssm /castor-garage/queues/os-events-url)
+          kubectl --context "${EKS_CLUSTER}" -n castor-garage-production create secret generic execucao-secret \
+            --from-literal=DATABASE_URL="${DATABASE_URL}" \
+            --from-literal=SQS_EXECUCAO_COMMANDS_QUEUE_URL="${EXECUCAO_COMMANDS_URL}" \
+            --from-literal=SQS_OS_EVENTS_QUEUE_URL="${OS_EVENTS_URL}" \
+            --from-literal=NEW_RELIC_LICENSE_KEY="${NEW_RELIC_LICENSE_KEY}" \
+            --dry-run=client -o yaml | kubectl --context "${EKS_CLUSTER}" apply -f -
         env:
           NEW_RELIC_LICENSE_KEY: ${{ secrets.NEW_RELIC_LICENSE_KEY }}
 
@@ -172,10 +184,19 @@ jobs:
       - name: Aplicar manifesto de namespace (staging)
         run: kubectl apply -f k8s/api/overlays/staging/namespace.yaml
 
-      - name: Atualizar license key da New Relic no Secret (staging)
+      # Mesmo esquema do deploy de producao, com o database de staging. Sem
+      # URLs de fila: so existe um conjunto de filas SQS (de producao) e
+      # staging consumindo dele roubaria mensagens da saga de producao - as
+      # variaveis SQS_* sao opcionais no Deployment e ficam vazias aqui.
+      - name: Montar Secret do servico a partir do SSM (staging)
         run: |
-          kubectl --context "${EKS_CLUSTER}" -n castor-garage-staging patch secret execucao-secret \
-            --type merge -p "{\"stringData\":{\"NEW_RELIC_LICENSE_KEY\":\"${NEW_RELIC_LICENSE_KEY}\"}}"
+          ssm() { aws ssm get-parameter --name "$1" --with-decryption --query Parameter.Value --output text; }
+          DATABASE_URL=$(ssm /castor-garage/execucao/database-url-staging)
+          echo "::add-mask::${DATABASE_URL}"
+          kubectl --context "${EKS_CLUSTER}" -n castor-garage-staging create secret generic execucao-secret \
+            --from-literal=DATABASE_URL="${DATABASE_URL}" \
+            --from-literal=NEW_RELIC_LICENSE_KEY="${NEW_RELIC_LICENSE_KEY}" \
+            --dry-run=client -o yaml | kubectl --context "${EKS_CLUSTER}" apply -f -
         env:
           NEW_RELIC_LICENSE_KEY: ${{ secrets.NEW_RELIC_LICENSE_KEY }}
 
