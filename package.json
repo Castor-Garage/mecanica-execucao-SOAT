@@ -33,6 +33,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/newrelic": "^9.14.8",
     "@types/node": "^22.9.0",
     "@vitest/coverage-v8": "^4.1.5",
     "prisma": "^7.8.0",
