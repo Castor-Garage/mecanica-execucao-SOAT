@@ -19,6 +19,20 @@ export default defineConfig({
     },
     sequence: { concurrent: false },
     testTimeout: 30000,
+    // Mesmo provider/filtro do vitest.config.ts (sem thresholds aqui - a
+    // rodada de integracao sozinha nao precisa bater 80%). reportsDirectory
+    // proprio (nao "coverage", usado pelos unitarios) porque vitest nao
+    // faz merge de cobertura entre processos `vitest run` separados -
+    // cleanOnRerun so afeta reruns dentro do modo watch, nao isso. O
+    // SonarCloud e configurado para ler os dois lcov.info (ver
+    // sonar-project.properties).
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov', 'html'],
+      reportsDirectory: 'coverage/integration',
+      include: ['src/domain/**', 'src/application/**'],
+      exclude: ['src/domain/**/I*.ts'],
+    },
   },
   resolve: {
     alias: {

@@ -50,9 +50,13 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Run unit tests
-        run: npm run test:unit
+      - name: Run unit tests with coverage
+        run: npm run test:coverage
 
+      # reportsDirectory proprio (coverage/integration, ver
+      # vitest.integration.config.ts) - vitest nao faz merge de cobertura
+      # entre processos `vitest run` separados, entao cada rodada grava o
+      # seu lcov.info e o SonarCloud le os dois (ver sonar-project.properties).
       - name: Run integration tests with coverage
         run: npm run test:coverage -- --config vitest.integration.config.ts
         env:
