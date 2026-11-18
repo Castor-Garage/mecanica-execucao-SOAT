@@ -28,13 +28,16 @@ Service é assíncrona via mensageria. O servidor HTTP existe apenas para o
 ## Estado atual (Fase 3 do backlog concluída)
 
 - [x] Consumer dos comandos `IniciarExecucao`/`AvancarExecucao`/`FalharExecucao`
-      e publisher dos eventos em `os-events` — hoje sobre `InMemoryMessageBus`
-      (porta `IMessageBus`), SQS real entra na Fase 5 sem mudar os use cases
+      e publisher dos eventos em `os-events` — porta `IMessageBus`, com dois
+      adapters: `InMemoryMessageBus` (testes/dev) e `SqsMessageBus` (SQS
+      real, `MESSAGE_BUS_DRIVER=sqs` — ver ADR 0006 em mecanica-pos-SOAT/docs)
 - [x] Use cases de diagnóstico/reparo/finalização (`StartExecutionUseCase`,
       `AdvanceExecutionUseCase`, `FailExecutionUseCase`)
 - [x] Testes unitários dos use cases: 44 testes, ~97% de cobertura em
       domínio/aplicação
-- [ ] 1 fluxo completo testado com BDD (ponta a ponta com os 3 serviços)
+- [ ] 1 fluxo completo testado com BDD (ponta a ponta com os 3 serviços) —
+      o fluxo do orquestrador está coberto em
+      `mecanica-pos-SOAT/tests/unit/infrastructure/messaging/sagaConsumer.test.ts`
 - [ ] Secrets de produção/staging (`execucao-secret`: `DATABASE_URL`,
       `NEW_RELIC_LICENSE_KEY`)
 
